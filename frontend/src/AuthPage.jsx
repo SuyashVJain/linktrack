@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { api, claimGuestLinks, setToken } from './api.js'
 import { Link, navigate } from './router.jsx'
-import { ErrorText, useToast } from './ui.jsx'
+import { ErrorText, Icon, useToast } from './ui.jsx'
 
 export default function AuthPage({ mode, onAuth }) {
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [show, setShow] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const login = mode === 'login'
@@ -29,20 +30,39 @@ export default function AuthPage({ mode, onAuth }) {
     }
   }
 
+  const tab = (to, label, active) => (
+    <Link to={to} className={`flex-1 border-b-2 py-3 text-center text-sm transition ${active ? 'border-accent text-white' : 'border-transparent text-white/50 hover:text-white'}`}>{label}</Link>
+  )
   return (
-    <form onSubmit={submit} className="glass mx-auto mt-6 max-w-sm space-y-4 p-6 sm:mt-12">
-      <h1 className="text-2xl font-semibold">{login ? 'Log in' : 'Create an account'}</h1>
-      <p className="text-sm text-white/60">{login ? 'Welcome back.' : 'Links you made as a guest on this device are saved to your account.'}</p>
-      <input className="field" type="email" placeholder="Email" required autoComplete="email" aria-label="Email"
-        value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input className="field" type="password" placeholder="Password (min 8 characters)" required minLength={8} aria-label="Password"
-        autoComplete={login ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
-      <ErrorText>{error}</ErrorText>
-      <button className="btn w-full" disabled={busy}>{login ? 'Log in' : 'Sign up'}</button>
-      <p className="text-center text-sm text-white/60">
-        {login ? <>No account? <Link to="/register" className="text-violet-300 hover:underline">Sign up</Link></>
-          : <>Have an account? <Link to="/login" className="text-violet-300 hover:underline">Log in</Link></>}
-      </p>
-    </form>
+    <section className="grid items-center gap-10 pt-2 lg:grid-cols-2 lg:pt-10">
+      <div className="hidden lg:block">
+        <h1 className="display text-5xl">Your guest links will be <em>saved</em> to your account.</h1>
+        <p className="mt-4 max-w-sm text-white/60">Links you created in this browser are moved to your account when you sign in.</p>
+      </div>
+      <div className="glass mx-auto w-full max-w-md overflow-hidden">
+        <div className="flex border-b border-white/10">{tab('/login', 'Log in', login)}{tab('/register', 'Create account', !login)}</div>
+        <form onSubmit={submit} className="space-y-4 p-6">
+          <label className="block text-sm">Email
+            <div className="relative mt-1.5">
+              <Icon name="mail" className="absolute left-3 top-3 h-4 w-4 text-white/40" />
+              <input className="field pl-10" type="email" placeholder="you@example.com" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </label>
+          <label className="block text-sm">Password
+            <div className="relative mt-1.5">
+              <Icon name="lock" className="absolute left-3 top-3 h-4 w-4 text-white/40" />
+              <input className="field pl-10 pr-10" type={show ? 'text' : 'password'} placeholder="At least 8 characters" required minLength={8}
+                autoComplete={login ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <button type="button" className="absolute right-3 top-3 text-white/50 hover:text-white" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'}>
+                <Icon name={show ? 'eyeOff' : 'eye'} />
+              </button>
+            </div>
+          </label>
+          <ErrorText>{error}</ErrorText>
+          <button className="btn w-full py-3" disabled={busy}>{login ? 'Log in' : 'Create account'}</button>
+          <p className="text-center text-xs text-white/50">Your guest links will be saved to your account.</p>
+        </form>
+      </div>
+    </section>
   )
 }

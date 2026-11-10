@@ -1,32 +1,56 @@
+@import "@fontsource-variable/fraunces/wght.css";
+@import "@fontsource-variable/fraunces/wght-italic.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
+@theme {
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+}
+
 body {
-  background: #0b0b1a;
-  color: #e8e8f5;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #060b1a;
+  color: #e6ebf5;
+  font-family: var(--font-sans);
   min-height: 100vh;
 }
 
 @layer components {
   .glass {
-    @apply rounded-2xl border border-white/10 bg-white/[0.06] shadow-xl shadow-black/30 backdrop-blur-xl;
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px -12px rgba(0, 0, 0, 0.6);
   }
   .glass-hover {
-    @apply transition duration-200 hover:border-white/20 hover:bg-white/[0.09];
+    @apply transition duration-200 hover:border-white/20 hover:bg-white/[0.07];
   }
   .field {
-    @apply w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 outline-none backdrop-blur transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/30;
+    @apply w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none transition focus:border-accent/70 focus:ring-2 focus:ring-accent/25;
   }
   .btn {
-    @apply inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-3 font-medium text-white shadow-lg shadow-violet-900/40 transition duration-200 hover:-translate-y-0.5 hover:bg-violet-400 active:translate-y-0 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-950/50 transition duration-200 hover:bg-accent-hover disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/80 transition duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white/85 transition duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/40 bg-red-500/15 px-3 py-2 text-sm text-red-200 transition duration-200 hover:bg-red-500/30;
+  }
+  .display {
+    font-family: var(--font-display);
+    @apply font-medium leading-[1.1] tracking-tight;
+  }
+  .display em {
+    @apply text-accent;
+    font-style: italic;
   }
 }
 
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-.toast { animation: toast-in 0.2s ease-out; }
+.pop { animation: pop-in 0.2s ease-out; }

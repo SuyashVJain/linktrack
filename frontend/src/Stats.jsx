@@ -1,35 +1,53 @@
 import { useEffect, useState } from 'react'
 import { api, removeGuestLink } from './api.js'
 import { Link, navigate } from './router.jsx'
-import { CopyButton, ErrorText, Spinner, useToast } from './ui.jsx'
+import { ConfirmModal, CopyButton, display, ErrorText, Icon, Spinner, useToast } from './ui.jsx'
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const fmtDay = (d) => `${MONTHS[+d.slice(5, 7) - 1]} ${+d.slice(8)}`
 
 function BarChart({ data }) {
-  const W = 600, H = 160, gap = 3
+  const W = 640, H = 180, L = 28, B = 22, T = 8, gap = 4
   const max = Math.max(1, ...data.map((d) => d.clicks))
-  const bw = W / data.length - gap
+  const top = max <= 4 ? max : Math.ceil(max / 4) * 4 // round the axis so ticks are whole numbers
+  const ticks = max <= 4 ? Array.from({ length: max + 1 }, (_, i) => i) : [0, 1, 2, 3, 4].map((i) => (top / 4) * i)
+  const bw = (W - L) / data.length - gap
+  const y = (v) => T + H - (v / top) * H
   return (
-    <svg viewBox={`0 0 ${W} ${H + 20}`} className="w-full" role="img" aria-label="Clicks per day, last 30 days">
+    <svg viewBox={`0 0 ${W} ${T + H + B}`} className="w-full" role="img" aria-label="Clicks per day, last 30 days">
+      {ticks.map((t) => (
+        <g key={t}>
+          <line x1={L} x2={W} y1={y(t)} y2={y(t)} stroke="white" strokeOpacity="0.08" />
+          <text x={L - 8} y={y(t) + 3} textAnchor="end" className="fill-white/50 font-mono text-[10px]">{t}</text>
+        </g>
+      ))}
       {data.map((d, i) => {
-        const h = d.clicks ? Math.max((d.clicks / max) * H, 2) : 0
+        const x = L + i * (bw + gap)
         return (
           <g key={d.day} className="group">
-            <rect x={i * (bw + gap)} y={0} width={bw} height={H} fill="transparent" />
-            <rect x={i * (bw + gap)} y={H - h} width={bw} height={h} rx="2" className="fill-violet-400 transition group-hover:fill-violet-200" />
-            <rect x={i * (bw + gap)} y={H - 1} width={bw} height={1} className="fill-white/15" />
-            <title>{`${d.day}: ${d.clicks}`}</title>
+            <rect x={x} y={T} width={bw + gap} height={H} fill="transparent" />
+            {d.clicks > 0 && <rect x={x} y={y(d.clicks)} width={bw} height={T + H - y(d.clicks)} rx="2" className="fill-accent transition group-hover:fill-blue-300" />}
+            {i % 4 === 0 && <text x={x + bw / 2} y={T + H + 16} textAnchor="middle" className="fill-white/50 font-mono text-[10px]">{fmtDay(d.day)}</text>}
+            <title>{`${fmtDay(d.day)}: ${d.clicks}`}</title>
           </g>
         )
       })}
-      <text x="0" y={H + 15} className="fill-white/40 text-[10px]">{data[0].day}</text>
-      <text x={W} y={H + 15} textAnchor="end" className="fill-white/40 text-[10px]">{data[data.length - 1].day}</text>
     </svg>
   )
 }
 
-export default function Stats({ token }) {
+const Card = ({ label, children }) => (
+  <div className="glass p-5">
+    <p className="text-xs text-white/50">{label}</p>
+    <p className="mt-1 font-mono text-3xl tabular-nums">{children}</p>
+  </div>
+)
+
+export default function Stats({ token, authed }) {
   const toast = useToast()
   const [s, setS] = useState(null)
   const [error, setError] = useState('')
+  const [confirm, setConfirm] = useState(false)
 
   useEffect(() => {
     setS(null)
@@ -38,57 +56,77 @@ export default function Stats({ token }) {
   }, [token])
 
   async function remove() {
-    if (!confirm('Delete this link and all its stats? This cannot be undone.')) return
+    setConfirm(false)
     try {
       await api('/stats/' + token, { method: 'DELETE' })
       removeGuestLink(token)
-      toast('Link deleted')
+      toast('Link deleted', 'error')
       navigate('/links')
     } catch (e) {
-      setError(e.message)
+      toast(e.message, 'error')
     }
   }
 
-  if (error) return <div className="glass p-8 text-center"><ErrorText>{error}</ErrorText><Link to="/links" className="btn-ghost mt-4">Back to my links</Link></div>
+  if (error) return <div className="glass mx-auto max-w-md p-8 text-center"><ErrorText>{error}</ErrorText><Link to="/links" className="btn-ghost mt-4">Back to my links</Link></div>
   if (!s) return <Spinner />
   const { link } = s
+  const total30 = s.clicks_per_day.reduce((n, d) => n + d.clicks, 0)
   return (
-    <div className="space-y-6">
-      <div className="glass p-6">
-        <p className="truncate text-sm text-white/50">{link.label || link.target_url}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <a href={link.short_url} target="_blank" rel="noreferrer" className="truncate text-xl font-semibold text-violet-300 hover:underline">{link.short_url}</a>
-          <CopyButton text={link.short_url} />
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link to="/links" className="text-white/60 transition hover:text-white" aria-label="Back to my links"><Icon name="arrowLeft" className="h-5 w-5" /></Link>
+          <a href={link.short_url} target="_blank" rel="noreferrer" className="truncate font-mono text-lg text-blue-300 hover:underline">{display(link.short_url)}</a>
         </div>
-        <p className="mt-5 text-5xl font-bold tabular-nums">{s.total_clicks}</p>
-        <p className="text-sm text-white/50">total clicks</p>
+        <div className="flex gap-2">
+          <CopyButton text={link.short_url} />
+          <button className="btn-danger" onClick={() => setConfirm(true)}><Icon name="trash" />Delete</button>
+        </div>
+      </div>
+      <p className="-mt-2 truncate text-sm text-white/50">{link.label ? `${link.label} · ` : ''}{link.target_url}</p>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card label="Total clicks">{s.total_clicks}</Card>
+        <Card label="Last 30 days">{total30}</Card>
+        <Card label="Created"><span className="text-xl">{new Date(link.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span></Card>
       </div>
 
-      <div className="glass p-6">
-        <h2 className="mb-3 text-sm font-medium text-white/60">Last 30 days</h2>
-        <BarChart data={s.clicks_per_day} />
+      <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+        <div className="glass p-5">
+          <h2 className="mb-4 text-sm font-medium">Clicks (last 30 days)</h2>
+          <BarChart data={s.clicks_per_day} />
+        </div>
+        <div className="glass p-5">
+          <h2 className="mb-4 text-sm font-medium">Top referrers</h2>
+          {s.top_referrers.length === 0 ? (
+            <p className="text-sm text-white/50">No clicks yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {s.top_referrers.map((r) => {
+                const pct = (r.clicks / s.total_clicks) * 100
+                return (
+                  <li key={r.referrer} className="text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="truncate">{r.referrer}</span>
+                      <span className="font-mono tabular-nums text-white/60">{pct.toFixed(1)}%</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-white/10"><div className="h-full rounded-full bg-accent" style={{ width: pct + '%' }} /></div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
       </div>
 
-      <div className="glass p-6">
-        <h2 className="mb-3 text-sm font-medium text-white/60">Top referrers</h2>
-        {s.top_referrers.length === 0 ? (
-          <p className="text-white/50">No clicks yet.</p>
-        ) : (
-          <ul className="divide-y divide-white/10">
-            {s.top_referrers.map((r) => (
-              <li key={r.referrer} className="flex justify-between gap-4 py-2">
-                <span className="truncate">{r.referrer}</span>
-                <span className="tabular-nums text-white/70">{r.clicks}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {!authed && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <span className="flex items-center gap-2"><Icon name="info" className="h-4 w-4 shrink-0" />This is an unsaved guest link. Sign up to keep it and access its stats anytime.</span>
+          <Link to="/register" className="btn py-1.5">Sign up</Link>
+        </div>
+      )}
 
-      <div className="flex justify-between">
-        <Link to="/links" className="btn-ghost">&larr; My links</Link>
-        <button className="btn-ghost hover:!border-rose-400/50 hover:!text-rose-300" onClick={remove}>Delete link</button>
-      </div>
-    </div>
+      {confirm && <ConfirmModal title="Delete link?" body={`This will permanently remove ${display(link.short_url)} and its analytics.`} onConfirm={remove} onCancel={() => setConfirm(false)} />}
+    </section>
   )
 }

@@ -1,23 +1,24 @@
 import { useEffect, useState } from 'react'
 import { getToken, setToken } from './api.js'
 import { Link, navigate, usePath } from './router.jsx'
+import { Icon } from './ui.jsx'
 import Landing from './Landing.jsx'
 import Links from './Links.jsx'
 import AuthPage from './AuthPage.jsx'
 import Stats from './Stats.jsx'
 
-function Blobs() {
+function Background() {
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-[#0b0b1a] via-[#14102b] to-[#0a1024]" aria-hidden>
-      <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-violet-600/40 blur-3xl" />
-      <div className="absolute -right-24 top-1/3 h-[28rem] w-[28rem] rounded-full bg-indigo-500/30 blur-3xl" />
-      <div className="absolute -bottom-32 left-1/4 h-96 w-96 rounded-full bg-fuchsia-600/25 blur-3xl" />
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#060b1a]" aria-hidden>
+      <div className="absolute -left-40 bottom-0 h-[32rem] w-[32rem] rounded-full bg-blue-600/25 blur-[120px]" />
+      <div className="absolute -right-40 -top-20 h-[28rem] w-[28rem] rounded-full bg-indigo-600/20 blur-[120px]" />
     </div>
   )
 }
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getToken())
+  const [menu, setMenu] = useState(false)
   const path = usePath()
 
   useEffect(() => {
@@ -25,45 +26,49 @@ export default function App() {
     addEventListener('logout', out)
     return () => removeEventListener('logout', out)
   }, [])
+  useEffect(() => setMenu(false), [path])
 
+  const stats = path.match(/^\/stats\/([A-Za-z0-9_-]+)$/)
   let page
-  let m
-  if (path === '/login' || path === '/register') {
-    page = <AuthPage mode={path.slice(1)} onAuth={() => setAuthed(true)} />
-  } else if (path === '/links') {
-    page = <Links authed={authed} />
-  } else if ((m = path.match(/^\/stats\/([A-Za-z0-9_-]+)$/))) {
-    page = <Stats token={m[1]} />
-  } else {
-    page = <Landing authed={authed} />
-  }
+  if (path === '/login' || path === '/register') page = <AuthPage mode={path.slice(1)} onAuth={() => setAuthed(true)} />
+  else if (path === '/links') page = <Links authed={authed} />
+  else if (stats) page = <Stats token={stats[1]} authed={authed} />
+  else page = <Landing authed={authed} />
 
-  const nav = 'text-sm text-white/70 transition hover:text-white'
+  // There is no account-wide stats page, so "Stats" only appears while viewing one link's stats.
+  const tabs = [['/', 'Home'], ['/links', 'My Links'], ...(stats ? [[path, 'Stats']] : [])]
+  const tab = (to, label) => (
+    <Link key={to} to={to} className={`border-b-2 py-1 text-sm transition ${path === to ? 'border-accent text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{label}</Link>
+  )
+  const logout = () => { setToken(null); setAuthed(false); navigate('/') }
+
+  const auth = authed ? (
+    <button className="btn-ghost" onClick={logout}>Log out</button>
+  ) : (
+    <>
+      <Link to="/login" className="btn-ghost">Log in</Link>
+      <Link to="/register" className="btn">Sign up</Link>
+    </>
+  )
+
   return (
     <>
-      <Blobs />
-      <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6">
-        <header className="mb-6 flex items-center justify-between">
-          <Link to="/" className="text-lg font-semibold tracking-tight">link<span className="text-violet-400">track</span></Link>
-          <nav className="flex items-center gap-4">
-            <Link to="/links" className={nav}>My links</Link>
-            {authed ? (
-              <button className={nav} onClick={() => { setToken(null); setAuthed(false); navigate('/') }}>Log out</button>
-            ) : (
-              <>
-                <Link to="/login" className={nav}>Log in</Link>
-                <Link to="/register" className="btn-ghost">Sign up</Link>
-              </>
-            )}
-          </nav>
+      <Background />
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-5 sm:px-6">
+        <header className="glass relative mb-8 flex items-center justify-between px-5 py-3">
+          <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
+            <Icon name="link" className="h-5 w-5 text-accent" />LinkTrack
+          </Link>
+          <nav className="hidden items-center gap-6 md:flex">{tabs.map(([to, l]) => tab(to, l))}</nav>
+          <div className="hidden items-center gap-2 md:flex">{auth}</div>
+          <button className="md:hidden" onClick={() => setMenu(!menu)} aria-label="Menu" aria-expanded={menu}><Icon name={menu ? 'x' : 'menu'} className="h-6 w-6" /></button>
+          {menu && (
+            <div className="glass pop absolute inset-x-0 top-full z-30 mt-2 flex flex-col gap-4 bg-[#0c1428]/95 p-5 md:hidden">
+              {tabs.map(([to, l]) => <Link key={to} to={to} className={path === to ? 'text-white' : 'text-white/60'}>{l}</Link>)}
+              <div className="flex gap-2 [&>*]:flex-1">{auth}</div>
+            </div>
+          )}
         </header>
-
-        {!authed && (
-          <div className="glass mb-6 border-amber-300/20 px-4 py-3 text-sm text-amber-100/90">
-            You are not signed in. <Link to="/register" className="font-medium underline underline-offset-2">Sign up</Link> to keep your links and stats on any device.
-          </div>
-        )}
-
         <main className="flex-1">{page}</main>
       </div>
     </>
