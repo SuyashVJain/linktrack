@@ -1,0 +1,14 @@
+{
+  "name": "linktrack-scripts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Developer scripts: README screenshots and the social preview image.",
+  "scripts": {
+    "screenshots": "node screenshots.mjs",
+    "og": "node og.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0"
+  }
+}
