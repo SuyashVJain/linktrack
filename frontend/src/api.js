@@ -19,21 +19,29 @@ export const removeGuestLink = (token) =>
 export const clearGuestLinks = () => write(GUEST_KEY, null)
 
 export async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch('/api' + path, {
-    method,
-    headers: {
-      ...(body && { 'Content-Type': 'application/json' }),
-      ...(getToken() && { Authorization: 'Bearer ' + getToken() }),
-    },
-    body: body && JSON.stringify(body),
-  })
+  let res
+  try {
+    res = await fetch('/api' + path, {
+      method,
+      headers: {
+        ...(body && { 'Content-Type': 'application/json' }),
+        ...(getToken() && { Authorization: 'Bearer ' + getToken() }),
+      },
+      body: body && JSON.stringify(body),
+    })
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.')
+  }
   if (res.status === 401 && getToken()) {
     setToken(null)
     window.dispatchEvent(new Event('logout'))
   }
   if (res.status === 204) return null
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || 'Request failed')
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Too many requests. Please wait a moment and try again.')
+    throw new Error(data.error || `Something went wrong (${res.status}). Please try again.`)
+  }
   return data
 }
 
