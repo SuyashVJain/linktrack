@@ -22,7 +22,7 @@ func generateSlug(n int) string {
 var slugRe = regexp.MustCompile(`^[A-Za-z0-9_-]{3,32}$`)
 
 // reservedSlugs would collide with the API or health routes.
-var reservedSlugs = map[string]bool{"api": true, "healthz": true}
+var reservedSlugs = map[string]bool{"api": true, "healthz": true, "app": true}
 
 func validateSlug(s string) error {
 	if !slugRe.MatchString(s) || reservedSlugs[s] {

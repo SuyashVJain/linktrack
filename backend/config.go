@@ -9,6 +9,7 @@ type Config struct {
 	Addr        string
 	DatabaseURL string
 	JWTSecret   string
+	StaticDir   string
 }
 
 func getenv(k, def string) string {
@@ -23,6 +24,7 @@ func loadConfig() Config {
 		Addr:        getenv("ADDR", ":8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
+		StaticDir:   os.Getenv("STATIC_DIR"),
 	}
 	if c.DatabaseURL == "" || c.JWTSecret == "" {
 		log.Fatal("DATABASE_URL and JWT_SECRET are required")
