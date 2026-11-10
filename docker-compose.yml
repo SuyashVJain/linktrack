@@ -22,6 +22,8 @@ services:
     environment:
       DATABASE_URL: postgres://linktrack:${POSTGRES_PASSWORD}@postgres:5432/linktrack?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:?copy .env.example to .env}
+      BASE_URL: ${BASE_URL:-http://localhost:8080}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
     ports:
       - "8080:8080"
 
