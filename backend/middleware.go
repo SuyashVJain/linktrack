@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,8 @@ type ipLimiter struct {
 	m     map[string]*visitor
 	limit rate.Limit
 	burst int
+	// trustProxy takes the client IP from the last X-Forwarded-For entry (the one the proxy appended).
+	trustProxy bool
 }
 
 type visitor struct {
@@ -67,15 +70,23 @@ func (il *ipLimiter) allow(ip string) bool {
 	return v.l.Allow()
 }
 
-// middleware keys on the TCP peer address.
-// shortcut: behind a reverse proxy every client shares the proxy IP, so honour X-Forwarded-For from a trusted proxy before deploying that way.
+func clientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			return strings.TrimSpace(parts[len(parts)-1])
+		}
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
 func (il *ipLimiter) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			ip = r.RemoteAddr
-		}
-		if !il.allow(ip) {
+		if !il.allow(clientIP(r, il.trustProxy)) {
 			writeErr(w, http.StatusTooManyRequests, "rate limit exceeded")
 			return
 		}

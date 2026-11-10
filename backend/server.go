@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,15 +24,24 @@ type Server struct {
 	clicks sync.WaitGroup // in-flight async click writes; drained on shutdown
 	// staticDir, when set, serves the built frontend under /app/.
 	staticDir       string
+	baseURL         string // public origin used to build short_url, no trailing slash
 	authLimiter     *ipLimiter
+	guestLimiter    *ipLimiter
 	redirectLimiter *ipLimiter
 }
 
-func newServer(db *pgxpool.Pool, secret, staticDir string) *Server {
+func newServer(cfg Config, db *pgxpool.Pool) *Server {
+	lim := func(l rate.Limit, burst int) *ipLimiter {
+		il := newIPLimiter(l, burst)
+		il.trustProxy = cfg.TrustProxy
+		return il
+	}
 	return &Server{
-		db: db, secret: []byte(secret), staticDir: staticDir,
-		authLimiter:     newIPLimiter(rate.Every(6*time.Second), 10), // ~10/min
-		redirectLimiter: newIPLimiter(50, 100),
+		db: db, secret: []byte(cfg.JWTSecret), staticDir: cfg.StaticDir,
+		baseURL:         strings.TrimRight(cfg.BaseURL, "/"),
+		authLimiter:     lim(rate.Every(6*time.Second), 10), // ~10/min
+		guestLimiter:    lim(rate.Every(6*time.Minute), 10), // ~10/hour
+		redirectLimiter: lim(50, 100),
 	}
 }
 
@@ -47,9 +60,12 @@ func (s *Server) routes() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.With(s.authLimiter.middleware).Post("/auth/register", s.handleRegister)
 		r.With(s.authLimiter.middleware).Post("/auth/login", s.handleLogin)
+		r.With(s.guestOrAuth).Post("/links", s.handleCreateLink)
+		r.Get("/stats/{token}", s.handleStatsByToken)
+		r.Delete("/stats/{token}", s.handleDeleteByToken)
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
-			r.Post("/links", s.handleCreateLink)
+			r.Post("/links/claim", s.handleClaim)
 			r.Get("/links", s.handleListLinks)
 			r.Delete("/links/{id}", s.handleDeleteLink)
 			r.Get("/links/{id}/stats", s.handleStats)
@@ -57,7 +73,7 @@ func (s *Server) routes() http.Handler {
 	})
 
 	if s.staticDir != "" {
-		r.Handle("/app/*", http.StripPrefix("/app/", http.FileServer(http.Dir(s.staticDir))))
+		r.Handle("/app/*", s.spa())
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/app/", http.StatusFound) })
 	}
 
@@ -94,4 +110,17 @@ func truncate(s string, n int) string {
 		return s[:n]
 	}
 	return s
+}
+
+// spa serves built frontend files and falls back to index.html so client-side routes survive a reload.
+func (s *Server) spa() http.Handler {
+	files := http.StripPrefix("/app/", http.FileServer(http.Dir(s.staticDir)))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := filepath.Join(s.staticDir, filepath.FromSlash(strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(r.URL.Path, "/app/")), "/")))
+		if st, err := os.Stat(name); err != nil || st.IsDir() {
+			http.ServeFile(w, r, filepath.Join(s.staticDir, "index.html"))
+			return
+		}
+		files.ServeHTTP(w, r)
+	})
 }

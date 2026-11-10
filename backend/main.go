@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	s := newServer(db, cfg.JWTSecret, cfg.StaticDir)
+	s := newServer(cfg, db)
 	srv := &http.Server{Addr: cfg.Addr, Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		log.Printf("listening on %s", cfg.Addr)

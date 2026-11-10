@@ -99,20 +99,54 @@ func (s *Server) respondToken(w http.ResponseWriter, status int, id int64) {
 	writeJSON(w, status, map[string]string{"token": tok})
 }
 
+// authenticate validates a Bearer token and stores the user id. Without a header it
+// returns false; an invalid token is rejected with 401 and also returns false.
+func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (*http.Request, bool) {
+	tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok {
+		return r, false
+	}
+	id, err := s.parseToken(tok)
+	if err != nil {
+		writeErr(w, http.StatusUnauthorized, "invalid token")
+		return nil, false
+	}
+	return r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)), true
+}
+
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		r2, ok := s.authenticate(w, r)
+		if r2 == nil {
+			return
+		}
 		if !ok {
 			writeErr(w, http.StatusUnauthorized, "missing token")
 			return
 		}
-		id, err := s.parseToken(tok)
-		if err != nil {
-			writeErr(w, http.StatusUnauthorized, "invalid token")
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)))
+		next.ServeHTTP(w, r2)
 	})
 }
 
-func userID(r *http.Request) int64 { return r.Context().Value(ctxKey{}).(int64) }
+// guestOrAuth lets requests through with or without a token; guests are rate limited per IP.
+func (s *Server) guestOrAuth(next http.Handler) http.Handler {
+	guest := s.guestLimiter.middleware(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r2, ok := s.authenticate(w, r)
+		if r2 == nil {
+			return
+		}
+		if ok {
+			next.ServeHTTP(w, r2)
+		} else {
+			guest.ServeHTTP(w, r)
+		}
+	})
+}
+
+func optUserID(r *http.Request) (int64, bool) {
+	id, ok := r.Context().Value(ctxKey{}).(int64)
+	return id, ok
+}
+
+func mustUserID(r *http.Request) int64 { return r.Context().Value(ctxKey{}).(int64) }
