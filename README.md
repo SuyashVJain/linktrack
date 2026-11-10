@@ -1,12 +1,30 @@
-# linktrack
+# LinkTrack
 
-A link shortener with click analytics. Works without an account, and lets you keep your links by signing up.
+[![CI](https://github.com/SuyashVJain/linktrack/actions/workflows/ci.yml/badge.svg)](https://github.com/SuyashVJain/linktrack/actions/workflows/ci.yml)
+[![Go version](https://img.shields.io/github/go-mod/go-version/SuyashVJain/linktrack?filename=backend%2Fgo.mod)](backend/go.mod)
+[![License: MIT](https://img.shields.io/github/license/SuyashVJain/linktrack)](LICENSE)
+
+LinkTrack is a self-hosted link shortener with click analytics. Anyone can shorten a URL without an account and get a private stats link; signing up moves those links to an account so they follow you across devices. It is a single Go binary backed by PostgreSQL that serves the API, the redirects and a React frontend.
+
+![Landing page](docs/screenshots/landing.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/result.png" alt="Link created, with QR code and private stats link"></td>
+    <td width="50%"><img src="docs/screenshots/stats.png" alt="Stats page with 30-day chart and top referrers"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/my-links.png" alt="My links table with click totals and trend sparklines"></td>
+  </tr>
+</table>
+
+The screenshots use seeded demo data. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to regenerate them.
 
 ## Features
 
 **Guest mode (no account)**
 - Shorten a URL with an optional custom slug and label
-- Every link gets a private stats URL; anyone holding it can view stats or delete the link
+- Each link gets a private stats URL; anyone holding it can view stats or delete the link
 - Guest links are remembered in the browser and listed under "My links"
 - QR code with PNG download
 
@@ -17,16 +35,17 @@ A link shortener with click analytics. Works without an account, and lets you ke
 
 **Both**
 - 302 redirects; clicks are recorded asynchronously so redirects stay fast
-- Stats per link: total clicks, clicks per day for the last 30 days, top referrers
-- Per-IP rate limiting on redirects, auth, and guest link creation
+- Per-link stats: total clicks, clicks per day for the last 30 days, top referrers
+- Per-IP rate limiting on redirects, auth and guest link creation
 - Request logging, graceful shutdown, `/healthz`
 
 ## Tech stack
 
 - Backend: Go, `net/http` with chi, pgx
 - Database: PostgreSQL 16, plain SQL migrations embedded in the binary and applied at startup
-- Frontend: React, Vite, Tailwind CSS, qrcode.react
+- Frontend: React, Vite, Tailwind CSS, qrcode.react; fonts are self-hosted
 - Packaging: multi-stage Docker image, Docker Compose
+- CI: GitHub Actions (`go vet`, Go tests against Postgres, frontend build)
 
 ## Architecture
 
@@ -45,6 +64,8 @@ One Go binary serves the JSON API, the public redirect, and the built frontend u
 ```
 backend/    Go API (flat package) and migrations/
 frontend/   React app, History API router, no UI framework
+scripts/    Playwright scripts for screenshots and the social image
+docs/       README screenshots
 ```
 
 ## Quick start
@@ -114,7 +135,9 @@ cd backend
 TEST_DATABASE_URL='postgres://postgres:test@localhost:55432/linktrack_test?sslmode=disable' go test ./...
 ```
 
-## Deployment notes
+The frontend has no test suite; `npm run build` in `frontend/` is the check. CI runs both.
+
+## Deployment
 
 - **Database:** create a Neon project and use its connection string as `DATABASE_URL` (keep `sslmode=require`). Migrations run on startup.
 - **Container:** build with `docker build -f backend/Dockerfile .` from the repository root. Render (Docker web service) and Fly.io both work; set the environment variables above and expose port 8080.
@@ -122,11 +145,24 @@ TEST_DATABASE_URL='postgres://postgres:test@localhost:55432/linktrack_test?sslmo
 - **`TRUST_PROXY`:** both platforms put a proxy in front of the container. Set `TRUST_PROXY=true` so rate limiting sees real client IPs; leave it `false` if the container is directly exposed, because clients can then forge the header.
 - Use a long random `JWT_SECRET`.
 
+## Roadmap
+
+Ideas, not commitments:
+
+- Country on clicks (the `clicks.country` column exists but is not populated)
+- Rotate or regenerate a stats token
+- Link expiry
+- Rate limiting shared across instances
+- Password reset and email verification
+
 ## Known limitations
 
 - A stats token is a bearer secret: whoever has it can view stats and delete the link. There is no way to rotate it.
 - Guest links are tracked in the browser's local storage. Clearing it loses the list (the stats URL still works if saved) until the links are claimed.
-- Rate limiting is in memory and per process; it is not shared across instances.
-- Slugs are random, and redirects are not blocklisted, so the service can be used to link to anything over http or https. Add abuse controls before exposing it publicly.
-- `clicks.country` exists but is not populated.
-- No password reset or email verification.
+- Rate limiting is in memory and per process.
+- Redirects are not checked against a blocklist, so the service can link to anything over http or https. Add abuse controls before exposing it publicly.
+- The frontend has no automated tests.
+
+## License
+
+[MIT](LICENSE)
