@@ -6,7 +6,7 @@ import { ConfirmModal, copyText, display, ErrorText, GuestBanner, Icon, Spinner,
 const TREND_LIMIT = 50 // signed-in lists fetch one stats request per row; cap it
 
 // Guests: look up each stored stats token (this also gives clicks per day).
-async function loadGuest() {
+export async function loadGuest() {
   const results = await Promise.all(
     getGuestLinks().map((g) =>
       api('/stats/' + g.stats_token)
@@ -91,7 +91,7 @@ export default function Links({ authed }) {
       {!links && !error && <Spinner />}
 
       {links && links.length === 0 && (
-        <div className="glass mx-auto flex max-w-sm flex-col items-center p-10 text-center">
+        <div className="glass flex w-full flex-col items-center p-12 text-center sm:p-20">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent"><Icon name="link" className="h-6 w-6" /></div>
           <p className="font-medium">No links yet</p>
           <p className="mt-1 text-sm text-white/60">Create your first short link to see it here.</p>

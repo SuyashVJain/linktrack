@@ -20,6 +20,13 @@ body {
 }
 
 @layer components {
+  .shell {
+    @apply mx-auto w-full px-4 sm:px-8 lg:px-12;
+    max-width: 1440px;
+  }
+  @media (min-width: 1800px) {
+    .shell { max-width: 1600px; }
+  }
   .glass {
     @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px -12px rgba(0, 0, 0, 0.6);

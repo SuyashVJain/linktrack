@@ -54,7 +54,7 @@ export default function App() {
   return (
     <>
       <Background />
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-5 sm:px-6">
+      <div className="shell flex min-h-screen flex-col py-5">
         <header className="glass relative mb-8 flex items-center justify-between px-5 py-3">
           <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
             <Icon name="link" className="h-5 w-5 text-accent" />LinkTrack
@@ -70,6 +70,7 @@ export default function App() {
           )}
         </header>
         <main className="flex-1">{page}</main>
+        <footer className="mt-12 border-t border-white/10 py-6 text-xs text-white/40">LinkTrack. Short links with click stats.</footer>
       </div>
     </>
   )

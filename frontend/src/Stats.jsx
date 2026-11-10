@@ -91,7 +91,7 @@ export default function Stats({ token, authed }) {
         <Card label="Created"><span className="text-xl">{new Date(link.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span></Card>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <div className="glass p-5">
           <h2 className="mb-4 text-sm font-medium">Clicks (last 30 days)</h2>
           <BarChart data={s.clicks_per_day} />
