@@ -4,6 +4,8 @@
 [![Go version](https://img.shields.io/github/go-mod/go-version/SuyashVJain/linktrack?filename=backend%2Fgo.mod)](backend/go.mod)
 [![License: MIT](https://img.shields.io/github/license/SuyashVJain/linktrack)](LICENSE)
 
+**Live demo:** https://linktrack-e4nf.onrender.com/app/ (the free instance sleeps after inactivity, so the first load can take up to a minute.)
+
 LinkTrack is a self-hosted link shortener with click analytics. Anyone can shorten a URL without an account and get a private stats link; signing up moves those links to an account so they follow you across devices. It is a single Go binary backed by PostgreSQL that serves the API, the redirects and a React frontend.
 
 ![Landing page](docs/screenshots/landing.png)
